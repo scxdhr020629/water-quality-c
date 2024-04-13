@@ -100,14 +100,20 @@ void loop()
     {
         TU_value = 3000;
     }
-    Serial.print("TU Value:");
-    Serial.print(TU_value); // print out the value you read:
-    Serial.println("NTU");
+
     // use json to transmit mqtt message
     // String output;
     float TDS = TU_value;
+    // 这里把 ph 写死先
+    float PH = 7.0;
+
     doc["TDS"] = TDS;
-    // serializeJson(doc, output);
+    doc["PH"] = PH;
+
+    Serial.print("TU Value:");
+    Serial.println(TU_value); // print out the value you read:
+    Serial.print("PH:");
+    Serial.println(PH);
     
     char buffer[256];
     size_t n = serializeJson(doc, buffer);
