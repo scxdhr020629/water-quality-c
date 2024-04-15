@@ -6,20 +6,26 @@
 #include <ArduinoJson.h>
 #include <string.h>
 
+// 设备id
+#define dev_id 1
+
 // WiFi
 const char *ssid = "scxazy";       // Enter your WiFi name
 const char *password = "cx020629"; // Enter WiFi password
 
 // MQTT Broker
 const char *mqtt_broker = "114.55.251.57";
-const char *topic = "scx/test";
+const char *pub_topic = "scx/pub";
+const char *sub_topic = "scx/sub";
 const char *mqtt_username = "scx";
 const char *mqtt_password = "test";
 const int mqtt_port = 1883;
 
 // mqtt json 
 StaticJsonDocument<200> doc;
-
+// 存入MySQL的 flag
+// flag 为 1 后 再存入数据
+int sqlFlag = 0;
 
 // TDS 所需要的 参数
 float TU = 0.0;
@@ -27,10 +33,14 @@ float TU_value = 0.0;
 float TU_calibration = 0.0;
 float temp_data = 25.0;
 // 这个温度应该是要被读取的 但是默认现在是室温环境好了
+// 2024 4 15 温度传感器 
 float K_Value = 3347.19;
+#define SensorPinTDS 39
 
 // PH 所需要的参数
-#define SensorPin 36            //pH meter Analog output to Arduino Analog Input 2
+#define SensorPinPH 36            //pH meter Analog output to Arduino Analog Input 2
+
+
 #define Offset 12.88           //deviation compensate
 // #define LED 13
 #define samplingInterval 20
@@ -39,7 +49,16 @@ float K_Value = 3347.19;
 int pHArray[ArrayLenth];   //Store the average value of the sensor feedback
 int pHArrayIndex=0;  
 
+#define SensorPinTemp 34
 
+// temp 配置
+#include <OneWireNg.h>  // 使用ng的 不要使用
+#include <DallasTemperature.h>
+
+#define ONE_WIRE_BUS 4
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -76,17 +95,18 @@ void setup()
         }
     }
     // publish and subscribe
-    client.publish(topic, "Hi EMQ X I'm ESP32 ^^");
+    client.publish(pub_topic, "Hi EMQ X I'm ESP32 ^^");
     
-    // 先不让水质检测器订阅了
-    // client.subscribe(topic);
+    // 水质检测器检测 更改 sqlFlag
+    client.subscribe(sub_topic);
+    sensors.begin();
 }
 
 // 回调代码
-void callback(char *topic, byte *payload, unsigned int length)
+void callback(char *pub_topic, byte *payload, unsigned int length)
 {
-    Serial.print("Message arrived in topic: ");
-    Serial.println(topic);
+    Serial.print("Message arrived in pub_topic: ");
+    Serial.println(pub_topic);
     Serial.print("Message:");
     for (int i = 0; i < length; i++)
     {
@@ -94,12 +114,22 @@ void callback(char *topic, byte *payload, unsigned int length)
     }
     Serial.println();
     Serial.println("-----------------------");
+    sqlFlag = 1;
 }
 
 void loop()
 {
     client.loop();
-    int sensorValue = analogRead(36);        // read the input on analog pin 0:
+    // temp 获取
+    sensors.requestTemperatures(); // 发送命令获取温度
+    temp_data = sensors.getTempCByIndex(0);
+    
+    Serial.print("Temp: ");
+    Serial.println(temp_data);
+    
+    
+    
+    int sensorValue = analogRead(SensorPinTDS);        // read the input on analog pin 0:
     float TU = sensorValue * (5.0 / 1024.0); // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
     TU_calibration = -0.0192 * (temp_data - 25) + TU;
     TU_value = -865.68 * TU_calibration + K_Value;
@@ -115,7 +145,7 @@ void loop()
     {
         TU_value = 3000;
     }
-
+    
     // use json to transmit mqtt message
     // String output;
     float TDS = TU_value;
@@ -130,7 +160,7 @@ void loop()
     static float pHValue, voltage;
     if (millis() - samplingTime > samplingInterval)
     {
-        pHArray[pHArrayIndex++] = analogRead(SensorPin);
+        pHArray[pHArrayIndex++] = analogRead(SensorPinPH);
         if (pHArrayIndex == ArrayLenth)
             pHArrayIndex = 0;
         voltage = avergearray(pHArray, ArrayLenth) * 5.0 / 1024;
@@ -149,12 +179,15 @@ void loop()
 
     PH = pHValue;
 
+    float TEMP = temp_data;
 
 
     // json 数据 发送 mqtt
+    doc["dev_id"] = dev_id;
     doc["TDS"] = TDS;
     doc["PH"] = PH;
-
+    doc["TEMP"] = TEMP;
+    doc["sqlFlag"] = sqlFlag;
     // 串口打印 TDS
     Serial.print("TU Value:");
     Serial.println(TU_value); // print out the value you read:
@@ -170,13 +203,21 @@ void loop()
         // digitalWrite(LED,digitalRead(LED)^1);
         printTime = millis();
     }
-
+    
+    
+    
     char buffer[256];
     size_t n = serializeJson(doc, buffer);
-    client.publish(topic, buffer, n);
+    client.publish(pub_topic, buffer, n);
+    
+    
+    if(sqlFlag == 1){
+        sqlFlag = 0;
+    }
+
 
     // String TUString = String(TU_value);
-    // client.publish(topic,TUString);
+    // client.publish(pub_topic,TUString);
     delay(1000);
     
 }
