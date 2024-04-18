@@ -184,6 +184,7 @@ void loop()
 
     // json 数据 发送 mqtt
     doc["dev_id"] = dev_id;
+    doc["dev_name"] = "dev_1";
     doc["TDS"] = TDS;
     doc["PH"] = PH;
     doc["TEMP"] = TEMP;
