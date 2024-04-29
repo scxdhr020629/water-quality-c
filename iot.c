@@ -149,7 +149,7 @@ void loop()
     // use json to transmit mqtt message
     // String output;
     float TDS = TU_value;
-    // 这里把 ph 写死先
+   
     float PH = 7.0;
 
 
