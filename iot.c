@@ -148,8 +148,8 @@ void loop()
     
     // use json to transmit mqtt message
     // String output;
-    float TDS = TU_value;
-   
+    // float TDS = TU_value;
+    float TDS = TU_value/3;
     float PH = 7.0;
 
 
@@ -180,11 +180,17 @@ void loop()
     PH = pHValue;
 
     float TEMP = temp_data;
-
-
+    float tempPH = PH - 7;
+    float absPH = abs(tempPH);
+    Serial.print("abs: ");
+    Serial.println(absPH);
+    float SCORE = (1000-TDS)/1000*50+(7-absPH)/7*50;
+    Serial.print("SCORE: ");
+    Serial.println(SCORE);
     // json 数据 发送 mqtt
     doc["dev_id"] = dev_id;
     doc["dev_name"] = "dev_1";
+    doc["SCORE"] = SCORE;
     doc["TDS"] = TDS;
     doc["PH"] = PH;
     doc["TEMP"] = TEMP;
