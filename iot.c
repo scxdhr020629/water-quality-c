@@ -130,9 +130,17 @@ void loop()
     
     
     int sensorValue = analogRead(SensorPinTDS);        // read the input on analog pin 0:
-    float TU = sensorValue * (5.0 / 1024.0); // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
+    float TU = sensorValue * (3.0 / 1024.0); // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 5V):
     TU_calibration = -0.0192 * (temp_data - 25) + TU;
     TU_value = -865.68 * TU_calibration + K_Value;
+    int testTDSABS = sensorValue-2100;
+    testTDSABS = abs(testTDSABS);
+    if(testTDSABS<=13){
+      testTDSABS = 0;
+    }
+    Serial.print("testTDSABS ");
+    Serial.println(testTDSABS);
+    
     Serial.print("SensorValue ");
     Serial.println(sensorValue);
     Serial.print("TU ");
